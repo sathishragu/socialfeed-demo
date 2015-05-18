@@ -8,7 +8,7 @@ let User = require('./models/user')
 let Twitter = require('twitter')
 //let Comment = require('./models/comment')
 let isLoggedIn = require('./middlewares/isLoggedIn')
-let FB = require('facebook-node-sdk')
+let FB = require('fb')
 
 module.exports = (app) => {
   let passport = app.passport
@@ -24,14 +24,21 @@ module.exports = (app) => {
         },
         facebook: {
             network: {
-              icon: 'twitter',
-              name: 'twitter',
-              class: 'btn-primary'
+              icon: 'facebook',
+              name: 'facebook',
+              class: 'btn-info'
+            }
+        },
+        google: {
+            network: {
+              icon: 'google-plus',
+              name: 'google',
+              class: 'btn-danger'
             }
         }
     }
 
-    let scope = 'email'
+    let twitterscope = 'email'
 
   app.get('/', (req, res) => {
     res.render('index.ejs')
@@ -70,7 +77,8 @@ module.exports = (app) => {
   })
 
   // Facebook - Authentication route and callback URL
-	app.get('/auth/facebook', passport.authenticate('facebook'))
+    let facebookScope = ['email, publish_actions, user_posts']
+	app.get('/auth/facebook', passport.authenticate('facebook', {scope: facebookScope}))
 
     app.get('/auth/facebook/callback', passport.authenticate('facebook', {
         successRedirect: '/profile',
@@ -79,7 +87,7 @@ module.exports = (app) => {
     }))
 
     // Authorization route and callback
-    app.get('/connect/facebook', passport.authorize('facebook', {scope}))
+    app.get('/connect/facebook', passport.authorize('facebook', {scope: facebookScope}))
     app.get('/connect/facebook/callback', passport.authorize('facebook', {
         successRedirect: '/profile',
         failureRedirect: '/profile',
@@ -87,7 +95,7 @@ module.exports = (app) => {
     }))
 
     // Twitter - Authentication route and callback URL
-    app.get('/auth/twitter', passport.authenticate('twitter', {scope}))
+    app.get('/auth/twitter', passport.authenticate('twitter', {scope: twitterscope}))
 
     app.get('/auth/twitter/callback', passport.authenticate('twitter', {
         successRedirect: '/profile',
@@ -96,8 +104,26 @@ module.exports = (app) => {
     }))
 
     // Authorization route and callback
-    app.get('/connect/twitter', passport.authorize('twitter', {scope}))
+    app.get('/connect/twitter', passport.authorize('twitter', {scope: twitterscope}))
     app.get('/connect/twitter/callback', passport.authorize('twitter', {
+        successRedirect: '/profile',
+        failureRedirect: '/profile',
+        failureFlash: true
+    }))
+
+    //Google auth
+
+    let googleScope = 'https://www.googleapis.com/auth/plus.login email'
+    app.get('/auth/google', passport.authenticate('google', {scope: googleScope}))
+    app.get('/auth/google/callback', passport.authenticate('google', {
+        successRedirect: '/profile',
+        failureRedirect: '/profile',
+        failureFlash: true
+    }))
+
+    //Google Authorize
+    app.get('/connect/google', passport.authorize('google', {scope: googleScope}))
+    app.get('/connect/google/callback', passport.authorize('google', {
         successRedirect: '/profile',
         failureRedirect: '/profile',
         failureFlash: true
@@ -144,8 +170,22 @@ module.exports = (app) => {
                             secret: facebookconfig.consumerSecret
                         }
                     )
-                let FBposts = await fbclient.promise.api({relative_url: 'me/feed', method: 'get'})*/
-                
+                let FBposts = await fbclient.promise.api({relative_url: 'me/feed', method: 'get'})
+                FB.setAccessToken(req.user.facebook.token)
+                console.log('before FBPOSTS')
+                let FBposts = await FB.promise.api('/me/feed')*/
+                FB.setAccessToken(req.user.facebook.token)
+                //let FBposts = await FB.promise.api('/me/feed/')
+                /*FB.api('', 'post' , {batch: [ { method: 'get', relative_url: '/me/feed' } ]}, function (res) {
+  if(!res || res.error) {
+    console.log(!res ? 'error occurred' : res.error);
+    return;
+  }
+  console.log(JSON.stringify(res));
+  //console.log(JSON.stringify(res))
+});
+                console.log('FBPOSTS')*/
+                //console.log('FBposts: ' + JSON.stringify(FBposts))
                 res.render('timeline.ejs', {
                     posts: tweets
                 })}catch(e){

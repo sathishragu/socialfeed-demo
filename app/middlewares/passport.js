@@ -5,6 +5,7 @@ let User = require('../models/user')
 let util = require('util')
 let FacebookStrategy = require('passport-facebook').Strategy
 let TwitterStrategy = require('passport-twitter').Strategy
+let GoogleStrategy = require('passport-google-oauth').OAuth2Strategy
 require('songbird')
 
 function useExternalPassportStrategy(OauthStrategy, config, field) {
@@ -51,6 +52,8 @@ function useExternalPassportStrategy(OauthStrategy, config, field) {
         user = updateFacebookDetails(account, token, tokenSecret, user, field)
       } else if (field === 'twitter'){
         user = updateTwitterDetails(account, token, tokenSecret, user, field)
+      }else if(field === 'google'){
+        user = updateGoogleDetails(account, token, tokenSecret, user, field)
       }
       try{
         return await user.save()
@@ -89,6 +92,16 @@ function useExternalPassportStrategy(OauthStrategy, config, field) {
     user[fieldname].tokenSecret = tokenSecret
     return user
   }
+
+  function updateGoogleDetails(account, token, tokenSecret, user, fieldname){
+    console.log('Updating google profile info to the user: ' + user)
+    user[fieldname].email = account.emails[0].value
+    user[fieldname].id = account.id
+    user[fieldname].name = account.displayName
+    user[fieldname].token = token
+    user[fieldname].tokenSecret = tokenSecret
+    return user
+  }
 }
 
 function configure(config) {
@@ -114,6 +127,9 @@ console.log('consumerKey: ' + config.twitterAuth.consumerKey)
        consumerSecret: config.twitterAuth.consumerSecret,
        callbackURL: config.twitterAuth.callbackUrl
      }, 'twitter')
+
+  //Google Auth Strategy
+  useExternalPassportStrategy(GoogleStrategy, config.googleAuth, 'google')
   // useExternalPassportStrategy(LinkedInStrategy, {...}, 'linkedin')
   // useExternalPassportStrategy(LinkedInStrategy, {...}, 'google')
   // passport.use('local-login', new LocalStrategy({...}, (req, email, password, callback) => {...}))
