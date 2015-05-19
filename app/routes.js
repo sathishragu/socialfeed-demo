@@ -76,7 +76,7 @@ module.exports = (app) => {
   })
 
   // Facebook - Authentication route and callback URL
-    let facebookScope = ['email, publish_actions, user_posts']
+    let facebookScope = ['email, publish_actions, user_posts, user_likes, read_stream']
 	app.get('/auth/facebook', passport.authenticate('facebook', {scope: facebookScope}))
 
     app.get('/auth/facebook/callback', passport.authenticate('facebook', {
@@ -234,6 +234,22 @@ module.exports = (app) => {
             return req.flash('error', 'Status cannot be empty!')
         }
         await twitterClient.promise.post('statuses/update', {status})
+
+        //To post it to FB
+
+        let url = 'https://graph.facebook.com/v2.2/me/feed?access_token=' + req.user.facebook.token + '&message=' + status
+            console.log('URL: ' + url)
+             await request.promise.post(url,
+                nodeifyit(async (error, response, body) => {
+                  if (!error && response.statusCode === 200) {
+                    let dataFromServer = JSON.parse(body)
+                    let data = dataFromServer.data
+                    console.log('Data from FB: ' + JSON.stringify(data))
+                  } else {
+                    console.log('Error: ' + error + '\nresponse: ' + response + '\nbody: ' + body)
+                  }
+                res.end()
+                 }, {spread: true}))
         res.redirect('/timeline')
 
     }))
