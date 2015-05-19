@@ -220,6 +220,9 @@ module.exports = (app) => {
     // Post Tweets
     app.post('/compose', isLoggedIn, then(async (req, res) => {
         let status = req.body.text
+        let postnetwork = req.body.postnetwork
+        console.log('postnetwork is ' +postnetwork)
+        if(postnetwork === 'twitter'){
         let twitterClient = new Twitter({
             consumer_key: twitterConfig.consumerKey,
             consumer_secret: twitterConfig.consumerSecret,
@@ -234,9 +237,8 @@ module.exports = (app) => {
             return req.flash('error', 'Status cannot be empty!')
         }
         await twitterClient.promise.post('statuses/update', {status})
-
+    }else if(postnetwork === 'facebook'){
         //To post it to FB
-
         let url = 'https://graph.facebook.com/v2.2/me/feed?access_token=' + req.user.facebook.token + '&message=' + status
             console.log('URL: ' + url)
              await request.promise.post(url,
@@ -250,6 +252,7 @@ module.exports = (app) => {
                   }
                 res.end()
                  }, {spread: true}))
+         }
         res.redirect('/timeline')
 
     }))
