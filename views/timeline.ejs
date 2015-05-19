@@ -41,9 +41,9 @@
                     </p>
                 </div>
                 <div class="row _icons">
-                    <i class="fa <%= post.liked ? "fa-thumbs-up" : "fa-thumbs-o-up" %> fa-2x _like" name="like<%= post.id %>"></i> 
-                    <a href="/reply/<%= post.id %>" class="fa fa-reply fa-2x"></a>
-                    <a href="/share/<%= post.id %>" class="fa fa-share-square-o fa-2x"></a>
+                    <i class="fa <%= post.liked ? "fa-thumbs-up" : "fa-thumbs-o-up" %> fa-2x _like" name="like-<%= post.network.name %>:<%= post.id %>"></i> 
+                    <a href="/reply/<%= post.network.name %>/<%= post.id %>" class="fa fa-reply fa-2x"></a>
+                    <a href="/share/<%= post.network.name %>/<%= post.id %>" class="fa fa-share-square-o fa-2x"></a>
                 </div>
             </div>
             <div class="col-xs-2">
@@ -58,13 +58,15 @@
     $(function() {
         $('._like').click(function() {
             var $this = $(this)
-            var id = $this.attr('name').replace('like', '')
+            var post = $this.attr('name').split(':')
+            var network = post[0].replace('like-', '')
+            var id = post[1]
             $this.toggleClass('fa-thumbs-o-up')
             $this.toggleClass('fa-thumbs-up')
             if ($this.hasClass('fa-thumbs-up')) {
-                $.post('like/' + id)
+                $.post('like/' + network + '/' +id)
             } else {
-                $.post('unlike/' + id)
+                $.post('unlike/' + network + '/' +id)
             }
         })
     })
