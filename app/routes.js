@@ -1,6 +1,6 @@
 let multiparty = require('multiparty')
 let then = require('express-then')
-let fs = require('fs')
+let Facebook = require('facebook-node-sdk')
 let DataUri = require('datauri')
 let nodeify = require('bluebird-nodeify')
 
@@ -8,7 +8,12 @@ let User = require('./models/user')
 let Twitter = require('twitter')
 //let Comment = require('./models/comment')
 let isLoggedIn = require('./middlewares/isLoggedIn')
-let FB = require('fb')
+let request = require('request')
+let nodeifyit = require('nodeifyit')
+let Promise = require("bluebird")
+Promise.promisifyAll(Facebook)
+require('songbird')
+
 
 module.exports = (app) => {
   let passport = app.passport
@@ -129,8 +134,41 @@ module.exports = (app) => {
         failureFlash: true
     }))
 
+    function getFacebookFeeds(req, res, next){
+        console.log('inside fb feeds...')
+        nodeify(async ()=> {
+            console.log('req.user.facebook.token: ' +req.user.facebook.token)
+            let url = 'https://graph.facebook.com/v2.2/me/feed?fields=id,from,likes,message&access_token=' + req.user.facebook.token
+            await request.promise(url,
+                nodeifyit(async (error, response, body) => {
+                  if (!error && response.statusCode === 200) {
+                    let dataFromServer = JSON.parse(body)
+                    let data = dataFromServer.data
+                    console.log('Data from FB: ' + JSON.stringify(data))
+                    let posts = data.map(post => {
+                          let isLiked = post.likes ? true : false
+                          return {
+                            id: post.id,
+                            image: '',
+                            text: post.message,
+                            name: post.from.name,
+                            username: req.user.facebook.email,
+                            liked: isLiked,
+                            network: networks.facebook
+                          }
+                       })
+                    console.log('Posts: ' + JSON.stringify(posts))
+                    req.fbposts = posts
+                  } else {
+                    console.log('Error: ' + error)
+                  }
+                  next()
+                 }, {spread: true}))
+      }(), next)
+    }
+
     // Twitter Timeline
-    app.get('/timeline', isLoggedIn, then(async (req, res) => {
+    app.get('/timeline', isLoggedIn, getFacebookFeeds, then(async (req, res) => {
         try{
                 let twitterClient = new Twitter({
                     consumer_key: twitterConfig.consumerKey,
@@ -160,38 +198,22 @@ module.exports = (app) => {
                     network: networks.twitter
                   }
                 })
-                console.log('tweets: ' + JSON.stringify(tweets))
+                req.tweets = tweets
 
-                //To get FB posts
-
-                /*let fbclient = new FB(
-                        {
-                            appID: facebookconfig.consumerKey,
-                            secret: facebookconfig.consumerSecret
-                        }
-                    )
-                let FBposts = await fbclient.promise.api({relative_url: 'me/feed', method: 'get'})
-                FB.setAccessToken(req.user.facebook.token)
-                console.log('before FBPOSTS')
-                let FBposts = await FB.promise.api('/me/feed')*/
-                FB.setAccessToken(req.user.facebook.token)
-                //let FBposts = await FB.promise.api('/me/feed/')
-                /*FB.api('', 'post' , {batch: [ { method: 'get', relative_url: '/me/feed' } ]}, function (res) {
-  if(!res || res.error) {
-    console.log(!res ? 'error occurred' : res.error);
-    return;
-  }
-  console.log(JSON.stringify(res));
-  //console.log(JSON.stringify(res))
-});
-                console.log('FBPOSTS')*/
-                //console.log('FBposts: ' + JSON.stringify(FBposts))
+                console.log('Posts: ' + JSON.stringify(req.tweets))
+                let posts = req.tweets
+                posts = req.fbposts.reduce( function(coll, item){
+                coll.push( item )
+                return coll
+                }, posts)
+                console.log('posts: ' + posts)
                 res.render('timeline.ejs', {
-                    posts: tweets
-                })}catch(e){
-                  console.log(e.stack)
-                  //e.stack()
-                }
+                        posts: posts
+                })
+        }catch(e){
+          console.log(e.stack)
+          //e.stack()
+        }
     }))
 
     // Post Tweets
