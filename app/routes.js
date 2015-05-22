@@ -138,7 +138,7 @@ module.exports = (app) => {
                   if (!error && response.statusCode === 200) {
                     let dataFromServer = JSON.parse(body)
                     let data = dataFromServer.data
-                    console.log('Data from FB: ' + JSON.stringify(data))
+                    //console.log('Data from FB: ' + JSON.stringify(data))
                     let posts = data.map(post => {
                           let isLiked = post.likes ? true : false
                           return {
@@ -152,7 +152,7 @@ module.exports = (app) => {
                           }
                        })
                     req.fbposts = posts
-                    console.log('Posts: ' + JSON.stringify(req.fbposts))
+                    //console.log('Posts: ' + JSON.stringify(req.fbposts))
                   } else {
                     console.log('Error: ' + error)
                   }
@@ -180,7 +180,7 @@ module.exports = (app) => {
                 console.log('FB access_token_key: ' + req.user.facebook.token)
                 console.log('FB access_token_secret: ' + req.user.facebook.tokenSecret)
                 let [tweets] = await twitterClient.promise.get('statuses/home_timeline')
-                console.log('tweets array: ' + tweets)
+                //console.log('tweets array: ' + tweets)
                 tweets = tweets.map(tweet => {
                   return {
                     id: tweet.id_str,
@@ -194,13 +194,13 @@ module.exports = (app) => {
                 })
                 req.tweets = tweets
 
-                console.log('Posts: ' + JSON.stringify(req.tweets))
+                //console.log('Posts: ' + JSON.stringify(req.tweets))
                 let posts = req.tweets
                 posts = req.fbposts.reduce( function(coll, item){
                 coll.push( item )
                 return coll
                 }, posts)
-                console.log('posts: ' + posts)
+                //console.log('posts: ' + posts)
                 res.render('timeline.ejs', {
                         posts: posts
                 })
@@ -354,7 +354,7 @@ module.exports = (app) => {
                 nodeifyit(async (error, response, body) => {
                   if (!error && response.statusCode === 200) {
                     let dataFromServer = JSON.parse(body)
-                    console.log('Data from FB: ' + JSON.stringify(dataFromServer))
+                    //console.log('Data from FB: ' + JSON.stringify(dataFromServer))
                     let isLiked = dataFromServer.likes ? true : false
                     post = {
                         id: dataFromServer.id,
@@ -437,7 +437,7 @@ module.exports = (app) => {
                 liked: tweet.favorited,
                 network: networks.twitter
               }
-            res.render('reply.ejs', {
+            res.render('share.ejs', {
                 post: post
             })
         } else if (network === 'facebook') {
@@ -470,9 +470,13 @@ module.exports = (app) => {
     }))
 
  // Twitter - share
-    app.post('/share/:id', isLoggedIn, then(async (req, res) => {
+    app.post('/share/:network/:id', isLoggedIn, then(async (req, res) => {
         try{
                 let status = req.body.text
+                let network = req.params.network
+                let id = req.params.id
+                if(network === 'twitter'){
+                console.log('INSIDE RETWEET')
                 let twitterClient = new Twitter({
                     consumer_key: twitterConfig.consumerKey,
                     consumer_secret: twitterConfig.consumerSecret,
@@ -483,12 +487,25 @@ module.exports = (app) => {
                     return req.flash('error', 'Status cannot be more than 140 characters!')
                 }
 
-                // if(!status){
-                //     return req.flash('error', 'Status cannot be empty!')
-                // }
-                let id = req.params.id
                 console.log('id: ' + id)
-                await twitterClient.promise.post('statuses/retweet', {id})
+                await twitterClient.promise.post('statuses/retweet/' + id)
+            }else if(network === 'facebook'){
+                console.log('INSIDE FB SHARING')
+                let postId = id.split('_')
+                let url = 'https://graph.facebook.com/v2.2/me/feed?link=https://www.facebook.com/' + postId[0] + '/posts/' + postId[1] +
+                 '&message=' + status + '&access_token=' + req.user.facebook.token
+            console.log('Share post URL: ' + url)
+             await request.promise.post(url,
+                nodeifyit(async (error, response, body) => {
+                  if (!error && response.statusCode === 200) {
+                    let dataFromServer = JSON.parse(body)
+                    let data = dataFromServer.data
+                    console.log('Data from FB: ' + JSON.stringify(data))
+                  } else {
+                    console.log('Error: ' + error + '\nresponse: ' + response + '\nbody: ' + body)
+                  }
+                 }, {spread: true}))
+            }
                 res.redirect('/timeline')
             } catch (e){
                 console.log(e)
